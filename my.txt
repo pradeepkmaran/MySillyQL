@@ -1,0 +1,22 @@
+Features:
+    Create, Insert, Read(Select)
+
+Priorities:
+    Basic functionalities (create, insert, read)
+    Update
+    Indexing
+    Concurrency control
+
+High level Design of architecture:
+    Storage engine
+    Query Processor
+    Transaction Management
+
+Programming Language:
+    C++ 
+
+Code flow:
+    Storage Engine: File based starage to read and write
+        
+    Query Parser: Basic parser to handle sql commands
+    CLI: Command Line Interface to interact with db
