@@ -6,7 +6,6 @@
 #include <stdio.h>
 #include <stdexcept>
 #include <Windows.h>
-// #include <filesystem>
 
 using namespace std;
 
@@ -58,7 +57,6 @@ void serialize_number(size_t number, vector<uint8_t>& buf, size_t offset = 0) {
     buf[offset+3] = static_cast<uint8_t>((number >> 24) & 0xFF);
 }
 
-// Fix for deserialize_number
 size_t deserialize_number(const vector<uint8_t>& buf, size_t offset = 0) {
     size_t number = 0;
 
@@ -70,8 +68,8 @@ size_t deserialize_number(const vector<uint8_t>& buf, size_t offset = 0) {
     return number;
 }
 
-size_t get_block_size(const string& file_name) {
-    #if defined(_WIN32) || defined(_WIN64)
+size_t get_block_size(const string& file_name) { // set of system commands to get the block size suitable for the particular OS
+    #if defined(_WIN32) || defined(_WIN64) // for windows OS
         DWORD sectors_per_cluster, bytes_per_sector, number_of_free_clusters, total_number_of_clusters;
         char fullPath[MAX_PATH];
         GetFullPathName(file_name.c_str(), MAX_PATH, fullPath, NULL);
@@ -84,7 +82,7 @@ size_t get_block_size(const string& file_name) {
         }
 
         return static_cast<size_t>(bytes_per_sector);
-    #else
+    #else // for POSIX based
         struct stat file_info;
         if (stat(file_name.c_str(), &file_info) != 0) {
             throw runtime_error("Failed to get file metadata");
@@ -92,72 +90,6 @@ size_t get_block_size(const string& file_name) {
         return static_cast<size_t>(file_info.st_blksize); 
     #endif
 }
-
-// class BTreeNode {
-// public:
-//     int *keys;
-//     int t;
-//     BTreeNode **C;
-//     int n;
-//     bool leaf;
-
-//     BTreeNode(int t1, bool leaf1) {
-//         t = t1;
-//         leaf = leaf1;
-//         keys = new int[2 * t - 1];
-//         C = new BTreeNode *[2 * t];
-//         n = 0;
-//     }
-//     void traverse() {
-//         int i;
-//         for (i = 0; i < n; i++) {
-//             if (!leaf)
-//                 C[i]->traverse();
-//             cout << " " << keys[i];
-//         }
-//         if (!leaf)
-//             C[i]->traverse();
-//     }
-//     void insertNonFull(int k) {
-//         int i = n - 1;
-//         if (leaf) {
-//             while (i >= 0 && keys[i] > k) {
-//                 keys[i + 1] = keys[i];
-//                 i--;
-//             }
-//             keys[i + 1] = k;
-//             n = n + 1;
-//         } else {
-//             while (i >= 0 && keys[i] > k)
-//                 i--;
-//             if (C[i + 1]->n == 2 * t - 1) {
-//                 splitChild(i + 1, C[i + 1]);
-//                 if (keys[i + 1] < k)
-//                     i++;
-//             }
-//             C[i + 1]->insertNonFull(k);
-//         }
-//     }
-//     void splitChild(int i, BTreeNode *y) {
-//         BTreeNode *z = new BTreeNode(y->t, y->leaf);
-//         z->n = t - 1;
-//         for (int j = 0; j < t - 1; j++)
-//             z->keys[j] = y->keys[j + t];
-//         if (!y->leaf) {
-//             for (int j = 0; j < t; j++)
-//                 z->C[j] = y->C[j + t];
-//         }
-//         y->n = t - 1;
-//         for (int j = n; j >= i + 1; j--)
-//             C[j + 1] = C[j];
-//         C[i + 1] = z;
-//         for (int j = n - 1; j >= i; j--)
-//             keys[j + 1] = keys[j];
-//         keys[i] = y->keys[t - 1];
-//         n = n + 1;
-//     }
-//     friend class BTree;
-// };
 
 class BTree {
 public:
@@ -169,7 +101,7 @@ public:
     size_t max_num_of_keys;
     size_t degree;
 
-    BTree(string file_name = "default_file") {
+    BTree(string file_name = "default_file") { // setting up the B-Tree for writing it in the file
         file.open(file_name, ios::in | ios::out | ios::binary); // opening the file and setting file operations
         if (!file.is_open()) {
             throw runtime_error("Failed to open the file: " + file_name);
@@ -271,7 +203,7 @@ public:
         return !file.fail();
     }
 
-    bool read_node(size_t block, Node* node) {
+    bool read_node(size_t block, Node* node) { // reading a B-Tree node from the block
         if (!seek(block)) {
             return false;
         }
@@ -306,7 +238,7 @@ public:
         return true;
     }
 
-    bool write_node(Node* node) {
+    bool write_node(Node* node) { // writing a B-Tree node to the block memory
         if (!seek(node->block)) {
             return false;
         }
@@ -370,7 +302,7 @@ public:
         return insert_into(root.get(), key);
     }
 
-    string json(const Node* node) {
+    string json(const Node* node) { // To display the B-Tree in Json format
         ostringstream ss;
         ss << "{\"block\":" << node->block << ",\"keys\":[";
 
@@ -400,16 +332,13 @@ public:
 
 int main() {
     try {
-        BTree btree("btree.bin");
+        BTree btree = BTree ("btree.bin"); // Creating our B-Tree
         
         for (int i = 1; i <= 8192; i++) {
             if (!btree.insert(i)) {
                 cerr << "Failed to insert value: " << i << endl;
                 return 1;
-            } 
-            // else {
-            //     cout << "Inserted " << i << endl; 
-            // }
+            }
         }
         
         Node root;
