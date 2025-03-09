@@ -50,24 +50,6 @@ public:
     Node(vector<uint32_t> keys) :block(0), keys(keys), children() {}
 };
 
-void serialize_number(size_t number, vector<uint8_t>& buf, size_t offset = 0) {
-    buf[offset] = static_cast<uint8_t>((number >> 0) & 0xFF);
-    buf[offset+1] = static_cast<uint8_t>((number >> 8) & 0xFF); 
-    buf[offset+2] = static_cast<uint8_t>((number >> 16) & 0xFF);
-    buf[offset+3] = static_cast<uint8_t>((number >> 24) & 0xFF);
-}
-
-size_t deserialize_number(const vector<uint8_t>& buf, size_t offset = 0) {
-    size_t number = 0;
-
-    number |= static_cast<size_t>(buf[offset]) << 0;
-    number |= static_cast<size_t>(buf[offset+1]) << 8;
-    number |= static_cast<size_t>(buf[offset+2]) << 16;
-    number |= static_cast<size_t>(buf[offset+3]) << 24;
-
-    return number;
-}
-
 size_t get_block_size(const string& file_name) { // set of system commands to get the block size suitable for the particular OS
     #if defined(_WIN32) || defined(_WIN64) // for windows OS
         DWORD sectors_per_cluster, bytes_per_sector, number_of_free_clusters, total_number_of_clusters;
@@ -82,7 +64,7 @@ size_t get_block_size(const string& file_name) { // set of system commands to ge
         }
 
         return static_cast<size_t>(bytes_per_sector);
-    #else // for POSIX based
+    #else // for POSIX based OS
         struct stat file_info;
         if (stat(file_name.c_str(), &file_info) != 0) {
             throw runtime_error("Failed to get file metadata");
@@ -215,22 +197,28 @@ public:
         
         node->block = block;
         
-        size_t keys_len = buf[0] | (static_cast<size_t>(buf[1]) << 8);
-        size_t children_len = buf[2] | (static_cast<size_t>(buf[3]) << 8);
+        uint16_t keys_len = (static_cast<uint16_t>(buf[0]) << 8) | buf[1]; // first 2 bytes are taken as key_len
+        uint16_t children_len = (static_cast<uint16_t>(buf[2]) << 8) | buf[3]; // next 2 bytes are taken as children_len
         
         node->keys.clear();
         node->children.clear();
         
         size_t i = 4;
-        for (size_t j = 0; j < keys_len; j++) {
-            size_t key = deserialize_number(buf, i);
+        for (size_t j = 0; j < keys_len; j++) { // Convert 4 bytes to uint32_t in big-endian order
+            uint32_t key = (static_cast<uint32_t>(buf[i]) << 24) |
+                            (static_cast<uint32_t>(buf[i+1]) << 16) |
+                            (static_cast<uint32_t>(buf[i+2]) << 8) |
+                            (static_cast<uint32_t>(buf[i+3] << 0));
             node->keys.push_back(key);
             i += 4;
         }
         
         i = block_size / 2;
-        for (size_t j = 0; j < children_len; j++) {
-            size_t child = deserialize_number(buf, i); 
+        for (size_t j = 0; j < children_len; j++) { // Convert 4 bytes to uint32_t in big-endian order
+            uint32_t child = (static_cast<uint32_t>(buf[i]) << 24) |
+                            (static_cast<uint32_t>(buf[i+1]) << 16) |
+                            (static_cast<uint32_t>(buf[i+2]) << 8) |
+                            (static_cast<uint32_t>(buf[i+3] << 0));
             node->children.push_back(child);
             i += 4;
         }
@@ -244,28 +232,35 @@ public:
         }
         
         vector<uint8_t> block(block_size, 0);
+        uint16_t keys_len = static_cast<uint16_t>(node->keys.size()); // Store keys.len() as big-endian u16
+        block[0] = (keys_len >> 8) & 0xFF;  // Most significant byte first (big-endian)
+        block[1] = keys_len & 0xFF;
         
-        block[0] = node->keys.size() & 0xFF;
-        block[1] = (node->keys.size() >> 8) & 0xFF;
-        block[2] = node->children.size() & 0xFF;
-        block[3] = (node->children.size() >> 8) & 0xFF;
+        uint16_t children_len = static_cast<uint16_t>(node->children.size()); // Store children.len() as big-endian u16
+        block[2] = (children_len >> 8) & 0xFF;  // Most significant byte first
+        block[3] = children_len & 0xFF;
         
         size_t i = 4;
-        for (size_t key : node->keys) {
-            serialize_number(key, block, i);
+        for (size_t key : node->keys) { // Convert key to big-endian u32 bytes
+            block[i]   = (key >> 24) & 0xFF;  
+            block[i+1] = (key >> 16) & 0xFF;
+            block[i+2] = (key >> 8) & 0xFF;
+            block[i+3] = key & 0xFF;         
             i += 4;
         }
         
         i = block_size / 2;
-        for (size_t child : node->children) {
-            serialize_number(child, block, i);
+        for (size_t child : node->children) { // Convert child to big-endian u32 bytes
+            block[i]   = (child >> 24) & 0xFF;
+            block[i+1] = (child >> 16) & 0xFF;
+            block[i+2] = (child >> 8) & 0xFF;
+            block[i+3] = child & 0xFF;
             i += 4;
         }
                 
         if (!file.write(reinterpret_cast<char*>(block.data()), block_size)) {
             return false;
         }
-        
         if (node->block == num_of_blocks) {
             num_of_blocks++;
         }
@@ -275,7 +270,7 @@ public:
 
     bool insert(size_t key) {
         if (!root) {
-            root = make_unique<Node>();
+            root = make_unique<Node> ();
             root->keys.push_back(key);
             root->block = 0;
             if (!write_node(root.get())) {
