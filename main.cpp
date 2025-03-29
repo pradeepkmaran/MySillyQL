@@ -9,6 +9,7 @@ typedef enum {
 typedef enum { 
     PREPARE_SUCCESS,
     PREPARE_SYNTAX_ERROR,
+    PREPARE_NEGATIVE_ID,
     PREPARE_UNRECOGNIZED_STATEMENT
 } PrepareResult;
 
@@ -22,12 +23,10 @@ typedef enum {
     STATEMENT_SELECT 
 } StatementType;
 
-#define COLUMN_USERNAME_SIZE 32
-#define COLUMN_EMAIL_SIZE 255
 typedef struct {
     uint32_t id;
-    char username[COLUMN_USERNAME_SIZE];
-    char email[COLUMN_EMAIL_SIZE];
+    string username;
+    string email;
 } Row;
 
 typedef struct {
@@ -56,7 +55,7 @@ typedef struct {
 } Table;
 
 void print_row(Row* row) {
-    printf("(%d, %s, %s)\n", row->id, row->username, row->email);
+    cout << row->id << " " << row->username << " " << row->email << endl;
 }
 
 void serialize_row(Row* source, void* destination) {
@@ -120,14 +119,34 @@ MetaCommandResult do_meta_command (string *input_buffer, Table *table) {
     }
 }
 
+PrepareResult prepare_insert (string *input_buffer, Statement* statement) {
+    statement->type = STATEMENT_INSERT;
+
+    char* char_input;
+    strcpy(char_input, input_buffer->c_str());
+    char* keyword = strtok(char_input, " ");
+    char* id_string = strtok(NULL, " ");
+    char* username = strtok(NULL, " ");
+    char* email = strtok(NULL, " ");
+
+    if (id_string == NULL || username == NULL || email == NULL) {
+        return PREPARE_SYNTAX_ERROR;
+    }
+
+    int id = atoi(id_string);
+
+    if (id < 0) return PREPARE_NEGATIVE_ID;
+
+    statement->row_to_insert.id = id;
+    statement->row_to_insert.username = username;
+    statement->row_to_insert.email = email;
+
+    return PREPARE_SUCCESS;
+}
+
 PrepareResult prepare_statement (string *input_buffer, Statement *statement) {
     if (input_buffer->substr(0, 6) == "insert") {
-        statement->type = STATEMENT_INSERT;
-        int args_assigned = sscanf(input_buffer->c_str(), "insert %d %s %s", &(statement->row_to_insert.id), statement->row_to_insert.username, statement->row_to_insert.email);
-        if (args_assigned < 3) {
-            return PREPARE_SYNTAX_ERROR;
-        }
-        return PREPARE_SUCCESS;
+        return prepare_insert(input_buffer, statement);
     }
     if (input_buffer->substr(0, 6) == "select") {
         statement->type = STATEMENT_SELECT;
@@ -189,6 +208,9 @@ int main (int argc, char** argv) {
                 break;
             case (PREPARE_SYNTAX_ERROR):
                 cout << "Syntax error. Could not parse the statement: " << *input_buffer << endl;
+                continue;
+            case (PREPARE_NEGATIVE_ID):
+                cout << "ID must be positive: " << *input_buffer << endl;
                 continue;
             case (PREPARE_UNRECOGNIZED_STATEMENT):
                 cout << "Unrecognised keyword at start: " << *input_buffer << endl;
