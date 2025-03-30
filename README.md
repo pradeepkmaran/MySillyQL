@@ -23,15 +23,29 @@ You must provide a database filename as an argument.
 ## Commands
 ### SQL Commands
 
-insert ID USERNAME EMAIL - Insert a new record
-select - Display all records in the database
+Insert a new record
+```bash
+insert ID USERNAME EMAIL
+```
+Display all records in the database
+```bash
+select
+```
 
 ### Meta Commands
 
-silly exit - Save changes and exit
-silly btree - Display the current B-tree structure
-silly constants - Show internal constants and configuration
-
+Save changes and exit
+```bash
+silly exit
+```
+Display the current B-tree structure
+```bash
+silly btree
+```
+Show internal constants and configuration
+```bash
+silly constants
+```
 ## Project Structure
 The database engine consists of:
 
