@@ -315,6 +315,33 @@ Cursor* leaf_node_find (Table* table, uint32_t page_num, uint32_t key) {
     return cursor;
 }
 
+Cursor* internal_node_find(Table* table, uint32_t page_num, uint32_t key) {
+    void* node = get_page(table->pager, page_num);
+    uint32_t num_keys = *internal_node_num_keys(node);
+
+    /* Binary search to find index of child to search */
+    uint32_t min_index = 0;
+    uint32_t max_index = num_keys; /* there is one more child than key */
+
+    while (min_index != max_index) {
+        uint32_t index = (min_index + max_index) / 2;
+        uint32_t key_to_right = *internal_node_key(node, index);
+        if (key_to_right >= key) {
+        max_index = index;
+        } else {
+        min_index = index + 1;
+        }
+    }
+    uint32_t child_num = *internal_node_child(node, min_index);
+    void* child = get_page(table->pager, child_num);
+    switch (get_node_type(child)) {
+        case NODE_LEAF:
+            return leaf_node_find(table, child_num, key);
+        case NODE_INTERNAL:
+            return internal_node_find(table, child_num, key);
+    }
+}
+
 void leaf_node_split_and_insert (Cursor* cursor, uint32_t key, Row* value) {
     /*
     Create a new node and move half the cells over.
@@ -358,8 +385,8 @@ void leaf_node_split_and_insert (Cursor* cursor, uint32_t key, Row* value) {
     if (is_node_root(old_node)) {
         return create_new_root(cursor->table, new_page_num);
     } else {
-        cout << "Need to implement updating parent after split" << endl;
-        exit(EXIT_FAILURE);
+        Cursor *ctemp = internal_node_find(cursor->table, cursor->page_num, key);
+        return;
     }
 }
 
@@ -386,7 +413,7 @@ void print_tree (Pager* pager, uint32_t page_num, uint32_t indentation_level) {
         case (NODE_LEAF):
         num_keys = *leaf_node_num_cells(node);
         indent(indentation_level);
-        cout << "- leaf (size " << num_keys << " )" << endl;
+        cout << "- leaf (size " << num_keys << ")" << endl;
         for (uint32_t i = 0; i < num_keys; i++) {
             indent(indentation_level + 1);
             cout << "- " << *leaf_node_key(node, i) << endl;
@@ -395,7 +422,7 @@ void print_tree (Pager* pager, uint32_t page_num, uint32_t indentation_level) {
         case (NODE_INTERNAL):
         num_keys = *internal_node_num_keys(node);
         indent(indentation_level);
-        cout << "- internal (size " << num_keys << endl;
+        cout << "- internal (size " << num_keys << ")" << endl;
         for (uint32_t i = 0; i < num_keys; i++) {
             child = *internal_node_child(node, i);
             print_tree(pager, child, indentation_level + 1);
@@ -438,8 +465,7 @@ Cursor* table_find (Table* table, uint32_t key) {
     if (get_node_type(root_node) == NODE_LEAF) {
         return leaf_node_find(table, root_page_num, key);
     } else {
-        cout << "Need to implement searching an internal node" << endl;
-        exit(EXIT_FAILURE);
+        return internal_node_find(table, root_page_num, key);
     }
 }
 
