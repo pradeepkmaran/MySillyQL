@@ -17,7 +17,8 @@ typedef enum {
 
 typedef enum { 
     EXECUTE_SUCCESS, 
-    EXECUTE_TABLE_FULL 
+    EXECUTE_TABLE_FULL ,
+    EXECUTE_DUPLICATE_KEY
 } ExecuteResult;
 
 typedef enum { 
@@ -123,32 +124,20 @@ void* leaf_node_value (void* node, uint32_t cell_num) {
     return (char*)leaf_node_cell(node, cell_num) + LEAF_NODE_KEY_SIZE;
 }
 
-void initialize_leaf_node(void* node) { 
+NodeType get_node_type (void* node) {
+    uint8_t value = *((uint8_t*)(node) + NODE_TYPE_OFFSET);
+    return (NodeType)value;
+}
+
+void set_node_type (void* node, NodeType type) {
+    uint8_t value = type;
+    *((uint8_t*)(node) + NODE_TYPE_OFFSET) = value;
+}
+
+void initialize_leaf_node (void* node) {
+    set_node_type(node, NODE_LEAF);
     *leaf_node_num_cells(node) = 0;
 }
-
-void print_constants() {
-    cout << "ROW_SIZE: " << ROW_SIZE << endl;
-    cout << "COMMON_NODE_HEADER_SIZE: " << COMMON_NODE_HEADER_SIZE << endl;
-    cout << "LEAF_NODE_HEADER_SIZE: " << LEAF_NODE_HEADER_SIZE << endl;
-    cout << "LEAF_NODE_CELL_SIZE: " << LEAF_NODE_CELL_SIZE << endl;
-    cout << "LEAF_NODE_SPACE_FOR_CELLS: " << LEAF_NODE_SPACE_FOR_CELLS << endl;
-    cout << "LEAF_NODE_MAX_CELLS: " << LEAF_NODE_MAX_CELLS << endl;
-}
-
-void print_leaf_node(void* node) {
-    uint32_t num_cells = *leaf_node_num_cells(node);
-    cout << "leaf (size "<< num_cells << ")" << endl;
-    for (uint32_t i = 0; i < num_cells; i++) {
-        uint32_t key = *leaf_node_key(node, i);
-        cout << " - " << i << " : " << key << endl;
-    }
-}
-
-void print_row (Row* row) {
-    cout << row->id << " " << row->username << " " << row->email << endl;
-}
-
 
 void* get_page (Pager* pager, uint32_t page_num) {
     if (page_num > TABLE_MAX_PAGES) {
@@ -158,7 +147,7 @@ void* get_page (Pager* pager, uint32_t page_num) {
 
     if (pager->pages[page_num] == NULL) {
         // Cache miss. Allocate memory and load from file.
-        void* page = malloc(PAGE_SIZE);
+        void* page = calloc(1, PAGE_SIZE);
         uint32_t num_pages = pager->file_length / PAGE_SIZE;
 
         // We might save a partial page at the end of the file
@@ -184,7 +173,58 @@ void* get_page (Pager* pager, uint32_t page_num) {
     return pager->pages[page_num];
 }
 
-Cursor* table_start(Table* table) {
+Cursor* leaf_node_find (Table* table, uint32_t page_num, uint32_t key) {
+    void* node = get_page(table->pager, page_num);
+    uint32_t num_cells = *leaf_node_num_cells(node);
+
+    Cursor* cursor = new Cursor();
+    cursor->table = table;
+    cursor->page_num = page_num;
+
+    // Binary search
+    uint32_t min_index = 0;
+    uint32_t one_past_max_index = num_cells;
+    while (one_past_max_index != min_index) {
+        uint32_t index = (min_index + one_past_max_index) / 2;
+        uint32_t key_at_index = *leaf_node_key(node, index);
+        if (key == key_at_index) {
+            cursor->cell_num = index;
+            return cursor;
+        }
+        if (key < key_at_index) {
+            one_past_max_index = index;
+        } else {
+            min_index = index + 1;
+        }
+    }
+
+    cursor->cell_num = min_index;
+    return cursor;
+}
+
+void print_constants () {
+    cout << "ROW_SIZE: " << ROW_SIZE << endl;
+    cout << "COMMON_NODE_HEADER_SIZE: " << COMMON_NODE_HEADER_SIZE << endl;
+    cout << "LEAF_NODE_HEADER_SIZE: " << LEAF_NODE_HEADER_SIZE << endl;
+    cout << "LEAF_NODE_CELL_SIZE: " << LEAF_NODE_CELL_SIZE << endl;
+    cout << "LEAF_NODE_SPACE_FOR_CELLS: " << LEAF_NODE_SPACE_FOR_CELLS << endl;
+    cout << "LEAF_NODE_MAX_CELLS: " << LEAF_NODE_MAX_CELLS << endl;
+}
+
+void print_leaf_node (void* node) {
+    uint32_t num_cells = *leaf_node_num_cells(node);
+    cout << "leaf (size "<< num_cells << ")" << endl;
+    for (uint32_t i = 0; i < num_cells; i++) {
+        uint32_t key = *leaf_node_key(node, i);
+        cout << " - " << i << " : " << key << endl;
+    }
+}
+
+void print_row (Row* row) {
+    cout << row->id << " " << row->username << " " << row->email << endl;
+}
+
+Cursor* table_start (Table* table) {
     Cursor* cursor = new Cursor();
     cursor->table = table;
     cursor->page_num = table->root_page_num;
@@ -197,17 +237,21 @@ Cursor* table_start(Table* table) {
     return cursor;
 }
 
-Cursor* table_end (Table* table) {
-    Cursor* cursor = new Cursor;
-    cursor->table = table;
-    cursor->page_num = table->root_page_num;
+/*
+Return the position of the given key.
+If the key is not present, return the position
+where it should be inserted
+*/
+Cursor* table_find (Table* table, uint32_t key) {
+    uint32_t root_page_num = table->root_page_num;
+    void* root_node = get_page(table->pager, root_page_num);
 
-    void* root_node = get_page(table->pager, table->root_page_num);
-    uint32_t num_cells = *leaf_node_num_cells(root_node);
-    cursor->cell_num = num_cells;
-    cursor->end_of_table = true;
-
-    return cursor;
+    if (get_node_type(root_node) == NODE_LEAF) {
+        return leaf_node_find(table, root_page_num, key);
+    } else {
+        printf("Need to implement searching an internal node\n");
+        exit(EXIT_FAILURE);
+    }
 }
 
 void* cursor_value (Cursor *cursor) {
@@ -281,14 +325,15 @@ Table* db_open (const char* filename) {
     return table;
 }
 
-void pager_flush(Pager* pager, uint32_t page_num) {
+void pager_flush (Pager* pager, uint32_t page_num) {
+    cout << "pager flush";
     if (pager->pages[page_num] == NULL) {
         cout << "Tried to flush null page" << endl;
         exit(EXIT_FAILURE);
     }
 
     off_t offset = lseek(pager->file_descriptor, page_num * PAGE_SIZE, SEEK_SET);
-
+    
     if (offset == -1) {
         cout << "Error seeking: " << errno << endl;
         exit(EXIT_FAILURE);
@@ -302,7 +347,7 @@ void pager_flush(Pager* pager, uint32_t page_num) {
     }
 }
 
-void db_close(Table* table) {
+void db_close (Table* table) {
     Pager* pager = table->pager;
     for (uint32_t i = 0; i < pager->num_pages; i++) {
         if (pager->pages[i] == NULL) {
@@ -326,8 +371,8 @@ void db_close(Table* table) {
         }
     }
 
-    free(pager);
-    free(table);
+    delete pager;
+    delete table;
 }
 
 void print_prompt () {
@@ -360,18 +405,16 @@ MetaCommandResult do_meta_command (string *input_buffer, Table *table) {
     }
 }
 
-void leaf_node_insert(Cursor* cursor, uint32_t key, Row* value) {
+void leaf_node_insert (Cursor* cursor, uint32_t key, Row* value) {
     void* node = get_page(cursor->table->pager, cursor->page_num);
 
     uint32_t num_cells = *leaf_node_num_cells(node);
     if (num_cells >= LEAF_NODE_MAX_CELLS) {
-        // Node full
         cout << "Need to implement splitting a leaf node." << endl;
         exit(EXIT_FAILURE);
     }
 
     if (cursor->cell_num < num_cells) {
-        // Make room for new cell
         for (uint32_t i = num_cells; i > cursor->cell_num; i--) {
             memcpy(leaf_node_cell(node, i), leaf_node_cell(node, i - 1), LEAF_NODE_CELL_SIZE);
         }
@@ -433,12 +476,20 @@ ExecuteResult execute_select (Statement *statement, Table *table) {
 
 ExecuteResult execute_insert (Statement *statement, Table *table) {
     void* node = get_page(table->pager, table->root_page_num);
-    if ((*leaf_node_num_cells(node) >= LEAF_NODE_MAX_CELLS)) {
+    uint32_t num_cells = (*leaf_node_num_cells(node));
+    if (num_cells >= LEAF_NODE_MAX_CELLS) {
         return EXECUTE_TABLE_FULL;
     }
 
     Row *row_to_insert = &(statement->row_to_insert);
-    Cursor* cursor = table_end(table);
+    uint32_t key_to_insert = row_to_insert->id;
+    Cursor* cursor = table_find(table, key_to_insert);
+    if (cursor->cell_num < num_cells) {
+        uint32_t key_at_index = *leaf_node_key(node, cursor->cell_num);
+        if (key_at_index == key_to_insert) {
+            return EXECUTE_DUPLICATE_KEY;
+        }
+    }
 
     leaf_node_insert(cursor, row_to_insert->id, row_to_insert);
 
@@ -498,8 +549,11 @@ int main (int argc, char** argv) {
         	case (EXECUTE_SUCCESS):
         	    cout << "Executed." << endl;
         	    break;
+            case (EXECUTE_DUPLICATE_KEY):
+                printf("Error: Duplicate key.\n");
+                break;
         	case (EXECUTE_TABLE_FULL):
-        	    cout << "Error: Table full." << endl;
+        	    cout << "Cant insert. Table full." << endl;
         	    break;
         }
     }
