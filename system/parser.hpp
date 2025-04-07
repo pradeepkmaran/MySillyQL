@@ -39,6 +39,8 @@ PrepareResult prepare_create_statement (string *statement, Schema &schema) {
         if (token_index < (int32_t)(tokens.size()) && tokens[token_index] == "as" && token_index++) {
             if (token_index < (int32_t)(tokens.size()) && tokens[token_index] == "primary" && token_index++) {
                 isPrimary = true;
+            } else if (token_index >= (int32_t)(tokens.size())) {
+                return PrepareResult::PREPARE_SYNTAX_ERROR;
             }
         }
         schema.addColumn(ColumnDef(colName, fieldType, isPrimary));

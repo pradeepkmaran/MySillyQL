@@ -1,13 +1,6 @@
-#include<bits/stdc++.h>
-using namespace std;
-
-enum class FieldType {
-    INTEGER,
-    TEXT,
-    DECIMAL,
-    BOOLEAN,
-    BLOB
-};
+// #include<bits/stdc++.h>
+// #include"constants.hpp"
+// using namespace std;
 
 class ColumnDef {
 private:
@@ -17,9 +10,12 @@ private:
     bool isPrimaryKey;
 
 public:
-    ColumnDef(const string& name, FieldType type, uint32_t maxSize = 0, bool isPrimaryKey = false) 
-        : name(name), type(type), maxSize(maxSize), isPrimaryKey(isPrimaryKey) {}
-    
+    // ColumnDef(const string& name, FieldType type, uint32_t maxSize = 0, bool isPrimaryKey = false) 
+    //     : name(name), type(type), maxSize(maxSize), isPrimaryKey(isPrimaryKey) {}
+    ColumnDef() = default;
+    ColumnDef(const string& name, FieldType type, bool isPrimaryKey = false) 
+        : name(name), type(type), maxSize(0), isPrimaryKey(isPrimaryKey) {}
+
     const string& getName() const { return name; }
     FieldType getType() const { return type; }
     uint32_t getMaxSize() const { return maxSize; }
@@ -43,6 +39,7 @@ private:
     string tableName;
     
 public:
+    Schema() : tableName("") {};
     Schema(const string& tableName) : tableName(tableName) {}
     
     void addColumn(const ColumnDef& column) {
@@ -320,3 +317,202 @@ public:
         }
     }
 };
+
+class Table {
+private:
+    Schema schema;
+    vector<Row> rows;  // Using simple string maps for storage
+    string filePath;
+    bool isDirty;  // Flag to track if table has unsaved changes
+    
+public:
+    Table() = default; 
+    Table(const Schema& schema, const string& filePath = "") 
+        : schema(schema), filePath(filePath), isDirty(false) {}
+    
+    // Create a new row and return a reference to it
+    Row createRow() {
+        return Row(&schema);
+    }
+    
+    // Insert a row into the table
+    void insertRow(const Row& row) {
+        rows.push_back(row);
+        isDirty = true;
+    }
+
+    vector<Row> getRows() {
+        return rows;
+    }
+    
+    // Find rows by a column value
+    vector<Row> findRows(const string& columnName, const Value value) const {
+        vector<Row> result;
+        ColumnDef target_column;
+        vector<ColumnDef> columns = schema.getColumns();
+        for(ColumnDef column: columns) {
+            if(column.getName() == columnName) {
+                target_column = column;
+                break;
+            }
+        }
+        FieldType type = target_column.getType();
+        for(Row row: rows) {
+            switch(type) {
+                case FieldType::INTEGER:
+                    if(row.getValue(columnName).getInt() == value.getInt()) result.push_back(row);
+                    break;
+                case FieldType::DECIMAL:
+                    if(row.getValue(columnName).getFloat() == value.getFloat()) result.push_back(row);
+                    break;
+                case FieldType::BOOLEAN:
+                    if(row.getValue(columnName).getBool() == value.getBool()) result.push_back(row);
+                    break;
+                case FieldType::TEXT:
+                case FieldType::BLOB:
+                    if(row.getValue(columnName).getText() == value.getText()) result.push_back(row);
+                    break;
+            }
+        }
+        return result;
+    }
+
+    // Update a row at a specific index
+    bool updateRow(size_t index, const Row& updatedRow) {
+        if (index >= rows.size()) {
+            return false;
+        }
+        
+        rows[index] = updatedRow;
+        isDirty = true;
+        return true;
+    }
+    
+    // Delete a row at a specific index
+    bool deleteRow(size_t index) {
+        if (index >= rows.size()) {
+            return false;
+        }
+        
+        rows.erase(rows.begin() + index);
+        isDirty = true;
+        return true;
+    }
+    
+    // Get the schema
+    const Schema& getSchema() const {
+        return schema;
+    }
+    
+    // Get number of rows
+    size_t size() const {
+        return rows.size();
+    }
+};
+
+// // Simple Database class to manage multiple tables
+// class Database {
+// private:
+//     map<string, Table> tables;
+//     string dbPath;
+    
+// public:
+//     Database(const string& path) : dbPath(path) {
+//         // In a real implementation, you'd ensure the directory exists
+//     }
+    
+//     // Create a new table
+//     void createTable(const Schema& schema) {
+//         string tableName = schema.getTableName();
+//         if (tableName.empty()) {
+//             throw runtime_error("Table must have a name");
+//         }
+        
+//         if (tables.find(tableName) != tables.end()) {
+//             throw runtime_error("Table already exists: " + tableName);
+//         }
+        
+//         string filePath = dbPath + "/" + tableName + ".csv";
+//         tables.emplace(tableName, Table(schema, filePath));
+//     }
+    
+//     // Get table by name
+//     Table& getTable(const string& tableName) {
+//         auto it = tables.find(tableName);
+//         if (it == tables.end()) {
+//             throw runtime_error("Table not found: " + tableName);
+//         }
+//         return it->second;
+//     }
+    
+//     // Drop a table
+//     bool dropTable(const string& tableName) {
+//         auto it = tables.find(tableName);
+//         if (it == tables.end()) {
+//             return false;
+//         }
+        
+//         tables.erase(it);
+//         return true;
+//     }
+    
+//     // Save all tables
+//     void saveAll() {
+//         for (auto& pair : tables) {
+//             pair.second.saveToFile();
+//         }
+//     }
+    
+//     // Load table from file
+//     void loadTable(const string& tableName, const Schema& schema) {
+//         string filePath = dbPath + "/" + tableName + ".csv";
+//         tables[tableName] = Table::loadFromFile(filePath, schema);
+//     }
+// };
+
+// Example usage
+// void exampleUsage() {
+//     // Create schema for a "users" table
+//     Schema userSchema("users");
+//     userSchema.addColumn(ColumnDef("id", FieldType::INTEGER, true));
+//     userSchema.addColumn(ColumnDef("name", FieldType::TEXT));
+//     userSchema.addColumn(ColumnDef("email", FieldType::TEXT));
+//     userSchema.addColumn(ColumnDef("age", FieldType::INTEGER));
+//     userSchema.addColumn(ColumnDef("is_active", FieldType::BOOLEAN));
+    
+//     // Create database
+//     Database db("./testdb");
+    
+//     // Create table
+//     db.createTable(userSchema);
+    
+//     // Get the table
+//     Table& usersTable = db.getTable("users");
+    
+//     // Insert data
+//     Row user1 = usersTable.createRow();
+//     user1.setValue("id", Value(int64_t(1)));
+//     user1.setValue("name", Value("John Doe"));
+//     user1.setValue("email", Value("john@example.com"));
+//     user1.setValue("age", Value(int64_t(30)));
+//     user1.setValue("is_active", Value(true));
+//     usersTable.insertRow(user1);
+    
+//     Row user2 = usersTable.createRow();
+//     user2.setValue("id", Value(int64_t(2)));
+//     user2.setValue("name", Value("Jane Smith"));
+//     user2.setValue("email", Value("jane@example.com"));
+//     user2.setValue("age", Value(int64_t(25)));
+//     user2.setValue("is_active", Value(true));
+//     usersTable.insertRow(user2);
+    
+//     // Retrieve data by id
+//     vector<Row> foundUsers = usersTable.findRows("id", int64_t(1));
+//     if (!foundUsers.empty()) {
+//         Row& foundUser = foundUsers[0];
+//         cout << "Found user: " << foundUser.getValue("name").getText() << endl;
+//     }
+    
+//     // Save data
+//     db.saveAll();
+// }
