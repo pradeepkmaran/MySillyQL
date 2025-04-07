@@ -410,65 +410,65 @@ public:
     }
 };
 
-// // Simple Database class to manage multiple tables
-// class Database {
-// private:
-//     map<string, Table> tables;
-//     string dbPath;
+// Simple Database class to manage multiple tables
+class Database {
+private:
+    map<string, Table> tables;
+    string dbPath;
     
-// public:
-//     Database(const string& path) : dbPath(path) {
-//         // In a real implementation, you'd ensure the directory exists
-//     }
+public:
+    Database(const string& path) : dbPath(path) {
+        // In a real implementation, you'd ensure the directory exists
+    }
     
-//     // Create a new table
-//     void createTable(const Schema& schema) {
-//         string tableName = schema.getTableName();
-//         if (tableName.empty()) {
-//             throw runtime_error("Table must have a name");
-//         }
+    // Create a new table
+    void createTable(const Schema& schema) {
+        string tableName = schema.getTableName();
+        if (tableName.empty()) {
+            throw runtime_error("Table must have a name");
+        }
         
-//         if (tables.find(tableName) != tables.end()) {
-//             throw runtime_error("Table already exists: " + tableName);
-//         }
+        if (tables.find(tableName) != tables.end()) {
+            throw runtime_error("Table already exists: " + tableName);
+        }
         
-//         string filePath = dbPath + "/" + tableName + ".csv";
-//         tables.emplace(tableName, Table(schema, filePath));
-//     }
+        string filePath = dbPath + "/" + tableName + ".db";
+        tables.emplace(tableName, Table(schema, filePath));
+    }
     
-//     // Get table by name
-//     Table& getTable(const string& tableName) {
-//         auto it = tables.find(tableName);
-//         if (it == tables.end()) {
-//             throw runtime_error("Table not found: " + tableName);
-//         }
-//         return it->second;
-//     }
+    // Get table by name
+    Table& getTable(const string& tableName) {
+        auto it = tables.find(tableName);
+        if (it == tables.end()) {
+            throw runtime_error("Table not found: " + tableName);
+        }
+        return it->second;
+    }
     
-//     // Drop a table
-//     bool dropTable(const string& tableName) {
-//         auto it = tables.find(tableName);
-//         if (it == tables.end()) {
-//             return false;
-//         }
+    // Drop a table
+    bool dropTable(const string& tableName) {
+        auto it = tables.find(tableName);
+        if (it == tables.end()) {
+            return false;
+        }
         
-//         tables.erase(it);
-//         return true;
-//     }
+        tables.erase(it);
+        return true;
+    }
     
-//     // Save all tables
-//     void saveAll() {
-//         for (auto& pair : tables) {
-//             pair.second.saveToFile();
-//         }
-//     }
+    // // Save all tables
+    // void saveAll() {
+    //     for (auto& pair : tables) {
+    //         pair.second.saveToFile();
+    //     }
+    // }
     
-//     // Load table from file
-//     void loadTable(const string& tableName, const Schema& schema) {
-//         string filePath = dbPath + "/" + tableName + ".csv";
-//         tables[tableName] = Table::loadFromFile(filePath, schema);
-//     }
-// };
+    // // Load table from file
+    // void loadTable(const string& tableName, const Schema& schema) {
+    //     string filePath = dbPath + "/" + tableName + ".csv";
+    //     tables[tableName] = Table::loadFromFile(filePath, schema);
+    // }
+};
 
 // Example usage
 // void exampleUsage() {

@@ -15,12 +15,12 @@ int main(int argc, char** argv) {
     char* filename = argv[1];
 
     string *input_buffer = new string();
-    Schema schema;
+    Database db(filename);
     while(true) {
         print_prompt();
         read_input(input_buffer);
 
-        PrepareResult prepareResult = prepare_statement(input_buffer, schema);
+        PrepareResult prepareResult = prepare_statement(input_buffer, db);
         if(prepareResult == PrepareResult::PREPARE_SUCCESS) {
             cout << "Executed successfully!" << endl;
         } else if (prepareResult == PrepareResult::PREPARE_SYNTAX_ERROR) {
