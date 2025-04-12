@@ -1,6 +1,6 @@
 // #include "imports.hpp"
-void print_prompt () {
-    cout << "/> ";
+void print_prompt (string dbName) {
+    cout << dbName << "/> ";
 }
 
 void read_input (string *input_buffer) {
@@ -110,4 +110,12 @@ Value stringToValue(const string& str, FieldType type) {
     }
     
     return result;
+}
+
+void printTableBorder(const vector<size_t>& columnWidths) {
+    cout << "+";
+    for (size_t width : columnWidths) {
+        cout << string(width, '-') << "+";
+    }
+    cout << endl;
 }

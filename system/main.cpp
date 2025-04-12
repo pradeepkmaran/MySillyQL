@@ -5,8 +5,6 @@
 #include "executor.hpp"
 #include "parser.hpp"
 
-// need to do pager and stuffs
-
 int main(int argc, char** argv) {
     if (argc >= 2) {
         cout << "Unrequired arguments passed";
@@ -15,9 +13,9 @@ int main(int argc, char** argv) {
     char* filename = argv[1];
 
     string *input_buffer = new string();
-    Database db("asdf");
+    Database db = Database("");
     while(true) {
-        print_prompt();
+        print_prompt(db.getDbName());
         read_input(input_buffer);
 
         SillyResults result = prepare_statement(input_buffer, db);
@@ -48,6 +46,5 @@ int main(int argc, char** argv) {
                 cout << "Something went wrong :/" << endl;
                 break;
         }
-        cout << db.getDbName() << endl;
     }
 }

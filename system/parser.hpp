@@ -133,12 +133,19 @@ SillyResults prepare_statement(string *statement, Database &db) {
         }
         return execute_insert(tableName, rawValues, db);
     } else if (tokens[1] == "get") {
-        string tableName;
+        string tableName = tokens[2];
         SillyResults parseResult = prepare_select_statement(statement, tableName);
         if (parseResult != SillyResults::SILLY_SUCCESS) {
             return parseResult;
         }
         return execute_select(tableName, db);
+    } else if (tokens[1] == "save") {
+        db.saveAllTables();
+        return SillyResults::SILLY_SUCCESS;
+    } else if (tokens[1] == "use") {
+        db = Database(tokens[2]);
+        db.loadAllTables();
+        return SillyResults::SILLY_SUCCESS;
     } else {
         return SillyResults::SILLY_UNRECOGNIZED_STATEMENT;
     }
