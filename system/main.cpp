@@ -2,21 +2,20 @@
 #include "constants.hpp"
 #include "components.hpp"
 #include "helpers.hpp"
-#include "connectors.hpp"
 #include "executor.hpp"
 #include "parser.hpp"
 
 // need to do pager and stuffs
 
 int main(int argc, char** argv) {
-    if (argc < 2) {
-        cout << "Enter a database filename" << endl;
+    if (argc >= 2) {
+        cout << "Unrequired arguments passed";
         exit(EXIT_FAILURE);
     }
     char* filename = argv[1];
 
     string *input_buffer = new string();
-    Database db(filename);
+    Database db("asdf");
     while(true) {
         print_prompt();
         read_input(input_buffer);
@@ -49,5 +48,6 @@ int main(int argc, char** argv) {
                 cout << "Something went wrong :/" << endl;
                 break;
         }
+        cout << db.getDbName() << endl;
     }
 }

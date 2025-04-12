@@ -1,6 +1,6 @@
 // #include "imports.hpp"
 void print_prompt () {
-    cout << "silly % ";
+    cout << "/> ";
 }
 
 void read_input (string *input_buffer) {

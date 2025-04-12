@@ -6,7 +6,7 @@ class ColumnDef {
 private:
     string name;
     FieldType type;
-    uint32_t maxSize;  // For variable length types like TEXT
+    uint32_t maxSize;
     bool isPrimaryKey;
 
 public:
@@ -65,7 +65,7 @@ public:
             }
             offset += col.getSize();
         }
-        return UINT32_MAX; // Column not found
+        return UINT32_MAX; 
     }
 };
 
@@ -78,33 +78,28 @@ private:
         bool boolValue;
         char* textValue;
     } data;
-    uint32_t size;  // For TEXT and BLOB types
+    uint32_t size;
 
 public:
-    // Constructors for different types
     explicit Value(int64_t val) : type(FieldType::INTEGER), size(0) { data.intValue = val; }
     explicit Value(double val) : type(FieldType::DECIMAL), size(0) { data.floatValue = val; }
     explicit Value(bool val) : type(FieldType::BOOLEAN), size(0) { data.boolValue = val; }
-    
-    // Default constructor
+
     Value() : type(FieldType::TEXT), size(0) {
         data.textValue = nullptr;
     }
 
-    // String constructor
     Value(const string& val) : type(FieldType::TEXT), size(val.length()) {
         data.textValue = new char[size + 1];
         strcpy(data.textValue, val.c_str());
     }
     
-    // Destructor
     ~Value() {
         if ((type == FieldType::TEXT || type == FieldType::BLOB) && data.textValue != nullptr) {
             delete[] data.textValue;
         }
     }
     
-    // Copy constructor
     Value(const Value& other) : type(other.type), size(other.size) {
         switch (type) {
             case FieldType::INTEGER:
@@ -128,11 +123,9 @@ public:
         }
     }
     
-    // Assignment operator
     Value& operator=(const Value& other) {
         if (this == &other) return *this;
         
-        // Clean up existing resources
         if ((type == FieldType::TEXT || type == FieldType::BLOB) && data.textValue != nullptr) {
             delete[] data.textValue;
             data.textValue = nullptr;
@@ -164,7 +157,6 @@ public:
         return *this;
     }
     
-    // Debug function to print value type
     void printType() const {
         cout << "Value type: ";
         switch (type) {
@@ -177,7 +169,6 @@ public:
         cout << endl;
     }
     
-    // Getters
     FieldType getType() const { return type; }
     
     int64_t getInt() const { 
@@ -203,7 +194,6 @@ public:
         return data.textValue ? string(data.textValue) : string("");
     }
     
-    // Serialization methods
     void serialize(void* destination) const {
         char* dest = static_cast<char*>(destination);
         
@@ -262,7 +252,7 @@ public:
 class Row {
 private:
     map<string, Value> values;
-    const Schema* schema;  // Reference to the schema this row belongs to
+    const Schema* schema;
 
 public:
     explicit Row(const Schema* schema) : schema(schema) {}
@@ -321,21 +311,19 @@ public:
 class Table {
 private:
     Schema schema;
-    vector<Row> rows;  // Using simple string maps for storage
+    vector<Row> rows; 
     string filePath;
-    bool isDirty;  // Flag to track if table has unsaved changes
+    bool isDirty; 
     
 public:
     Table() = default; 
     Table(const Schema& schema, const string& filePath = "") 
         : schema(schema), filePath(filePath), isDirty(false) {}
     
-    // Create a new row and return a reference to it
     Row createRow() {
         return Row(&schema);
     }
     
-    // Insert a row into the table
     void insertRow(const Row& row) {
         rows.push_back(row);
         isDirty = true;
@@ -345,7 +333,6 @@ public:
         return rows;
     }
     
-    // Find rows by a column value
     vector<Row> findRows(const string& columnName, const Value value) const {
         vector<Row> result;
         ColumnDef target_column;
@@ -377,7 +364,6 @@ public:
         return result;
     }
 
-    // Update a row at a specific index
     bool updateRow(size_t index, const Row& updatedRow) {
         if (index >= rows.size()) {
             return false;
@@ -388,7 +374,6 @@ public:
         return true;
     }
     
-    // Delete a row at a specific index
     bool deleteRow(size_t index) {
         if (index >= rows.size()) {
             return false;
@@ -399,7 +384,6 @@ public:
         return true;
     }
     
-    // Get the schema
     const Schema& getSchema() const {
         return schema;
     }
@@ -410,18 +394,15 @@ public:
     }
 };
 
-// Simple Database class to manage multiple tables
 class Database {
 private:
     map<string, Table> tables;
+    string dbName;
     string dbPath;
     
 public:
-    Database(const string& path) : dbPath(path) {
-        // In a real implementation, you'd ensure the directory exists
-    }
+    Database(const string& name) : dbName(name), dbPath("data/"+name) {}
     
-    // Create a new table
     void createTable(const Schema& schema) {
         string tableName = schema.getTableName();
         if (tableName.empty()) {
@@ -432,11 +413,10 @@ public:
             throw runtime_error("Table already exists: " + tableName);
         }
         
-        string filePath = dbPath + "/" + tableName + ".db";
+        string filePath = "data/" + dbName + "/" + tableName + ".db";
         tables.emplace(tableName, Table(schema, filePath));
     }
     
-    // Get table by name
     Table& getTable(const string& tableName) {
         auto it = tables.find(tableName);
         if (it == tables.end()) {
@@ -445,7 +425,6 @@ public:
         return it->second;
     }
     
-    // Drop a table
     bool dropTable(const string& tableName) {
         auto it = tables.find(tableName);
         if (it == tables.end()) {
@@ -454,6 +433,10 @@ public:
         
         tables.erase(it);
         return true;
+    }
+
+    string getDbName() {
+        return dbName;
     }
     
     // // Save all tables
@@ -465,7 +448,7 @@ public:
     
     // // Load table from file
     // void loadTable(const string& tableName, const Schema& schema) {
-    //     string filePath = dbPath + "/" + tableName + ".csv";
+    //     string filePath = dbName + "/" + tableName + ".csv";
     //     tables[tableName] = Table::loadFromFile(filePath, schema);
     // }
 };
@@ -479,16 +462,12 @@ public:
 //     userSchema.addColumn(ColumnDef("email", FieldType::TEXT));
 //     userSchema.addColumn(ColumnDef("age", FieldType::INTEGER));
 //     userSchema.addColumn(ColumnDef("is_active", FieldType::BOOLEAN));
-    
 //     // Create database
 //     Database db("./testdb");
-    
 //     // Create table
 //     db.createTable(userSchema);
-    
 //     // Get the table
 //     Table& usersTable = db.getTable("users");
-    
 //     // Insert data
 //     Row user1 = usersTable.createRow();
 //     user1.setValue("id", Value(int64_t(1)));
@@ -497,7 +476,6 @@ public:
 //     user1.setValue("age", Value(int64_t(30)));
 //     user1.setValue("is_active", Value(true));
 //     usersTable.insertRow(user1);
-    
 //     Row user2 = usersTable.createRow();
 //     user2.setValue("id", Value(int64_t(2)));
 //     user2.setValue("name", Value("Jane Smith"));
@@ -505,14 +483,12 @@ public:
 //     user2.setValue("age", Value(int64_t(25)));
 //     user2.setValue("is_active", Value(true));
 //     usersTable.insertRow(user2);
-    
 //     // Retrieve data by id
 //     vector<Row> foundUsers = usersTable.findRows("id", int64_t(1));
 //     if (!foundUsers.empty()) {
 //         Row& foundUser = foundUsers[0];
 //         cout << "Found user: " << foundUser.getValue("name").getText() << endl;
 //     }
-    
 //     // Save data
 //     db.saveAll();
 // }
