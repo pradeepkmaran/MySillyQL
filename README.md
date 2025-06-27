@@ -1,6 +1,6 @@
 # MySillyQL 
 A basic SQLite-like database engine written in C++. This project implements a simple database with a B-tree structure for data storage and retrieval.
-
+(Use the branch `more-realistic-db` for generalised version of MySillyQL without the btree implementation)
 ## Overview
 This project creates a database that:
 * Stores records with ID, username, and email fields
