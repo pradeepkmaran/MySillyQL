@@ -54,8 +54,8 @@ silly make table users with columns
 
 ### Inserting Data
 ```sql
-silly put 1 "John Doe" "john@example.com" 25 true inside table users;
-silly put 2 "Jane Smith" "jane@example.com" 30 false inside table users;
+silly put 1 "John-Doe" "john@example.com" 25 true inside table users;
+silly put 2 "Jane-Smith" "jane@example.com" 30 false inside table users;
 ```
 
 ### Querying Data
@@ -193,6 +193,7 @@ This project demonstrates:
 - [ ] Network protocol for client-server architecture
 - [ ] Query optimization
 - [ ] BLOB data type implementation
+- [ ] Support multi-word values for strings
 
 ## 🏗️ Architecture Overview
 
