@@ -1,4 +1,7 @@
-SillyResults execute_create_db(Database& db, string &dbName) {
+#include "executor.hpp"
+#include "../common/utils.hpp"
+
+SillyResults executeCreateDatabase(Database& db, string &dbName) {
     try {
         string dataDir = "data";
         filesystem::path dataPath(dataDir);
@@ -12,11 +15,11 @@ SillyResults execute_create_db(Database& db, string &dbName) {
 
         db = Database(dbName);
         
-        string dbDir = dataDir + "/" + db.getDbName();
+        string dbDir = dataDir + "/" + db.getName();
         filesystem::path dbPath(dbDir);
         
         if (filesystem::exists(dbPath)) {
-            cout << "Database '" << db.getDbName() << "' already exists" << endl;
+            cout << "Database '" << db.getName() << "' already exists" << endl;
             return SillyResults::SILLY_EXECUTION_ERROR;
         }
         
@@ -33,11 +36,11 @@ SillyResults execute_create_db(Database& db, string &dbName) {
             return SillyResults::SILLY_EXECUTION_ERROR;
         }
         
-        configStream << "DB_NAME=" << db.getDbName() << endl;
+        configStream << "DB_NAME=" << db.getName() << endl;
         configStream << "CREATED_AT=" << time(nullptr) << endl;
         configStream.close();
         
-        cout << "Database '" << db.getDbName() << "' created successfully" << endl;
+        cout << "Database '" << db.getName() << "' created successfully" << endl;
         return SillyResults::SILLY_SUCCESS;
     } 
     catch (const exception& e) {
@@ -46,8 +49,8 @@ SillyResults execute_create_db(Database& db, string &dbName) {
     }
 }
 
-SillyResults execute_create_table(Schema &schema, Database &db) {
-    for (ColumnDef col: schema.getColumns()) {
+SillyResults executeCreateTable(Schema &schema, Database &db) {
+    for (ColumnDefinition col: schema.getColumns()) {
         cout << col.getName() << " " << fieldTypeToString(col.getType()) << endl;
     }
     
@@ -60,21 +63,21 @@ SillyResults execute_create_table(Schema &schema, Database &db) {
     }
 }
 
-SillyResults execute_insert(string tableName, vector<string> &rawValues, Database &db) {
+SillyResults executeInsert(string tableName, vector<string> &rawValues, Database &db) {
     try {
         Table &table = db.getTable(tableName);
         Schema schema = table.getSchema();
         Row row = table.createRow();
 
-        vector<ColumnDef> columns = schema.getColumns(); 
+        vector<ColumnDefinition> columns = schema.getColumns(); 
         if(columns.size() != rawValues.size()) {
             return SillyResults::SILLY_SYNTAX_ERROR;
         }
         
         for(int index=0; index<columns.size(); index++) {
-            ColumnDef column = columns[index];
+            ColumnDefinition column = columns[index];
             Value entry;
-            if(isStringValidValueForFieldType(rawValues[index], column.getType())) {
+            if(isValidValueForFieldType(rawValues[index], column.getType())) {
                 entry = stringToValue(rawValues[index], column.getType());
             } else {
                 return SillyResults::SILLY_TYPE_MISMATCH_ERROR;
@@ -90,13 +93,13 @@ SillyResults execute_insert(string tableName, vector<string> &rawValues, Databas
     }
 }
 
-SillyResults execute_select(string tableName, Database &db) {
+SillyResults executeSelect(string tableName, Database &db) {
     try {
         Table table = db.getTable(tableName);
         const Schema& schema = table.getSchema();
         vector<Row> rows = table.getRows();
         
-        const vector<ColumnDef>& columns = schema.getColumns();
+        const vector<ColumnDefinition>& columns = schema.getColumns();
         vector<string> columnNames;
         
         for (const auto& col : columns) {

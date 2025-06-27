@@ -1,11 +1,16 @@
-vector<string> tokenize(string *statement) {
-    vector<string> tokens = split_on(statement, ' ');
+#include "parser.hpp"
+#include "executor.hpp"
+#include "../common/utils.hpp"
+#include "../io/input_output.hpp"
+
+vector<string> tokenizeStatement(string *statement) {
+    vector<string> tokens = splitString(statement, ' ');
     vector<string> fine_tokens;
     
     for (int token_index = 0; token_index < (int32_t)(tokens.size()); token_index++) {
-        vector<string> delimits1 = split_on(&tokens[token_index], ',');
+        vector<string> delimits1 = splitString(&tokens[token_index], ',');
         for (string delimit1 : delimits1) {
-            vector<string> delimits2 = split_on(&delimit1, ';');
+            vector<string> delimits2 = splitString(&delimit1, ';');
             for (string delimit2 : delimits2) {
                 fine_tokens.push_back(delimit2);
             }
@@ -15,8 +20,8 @@ vector<string> tokenize(string *statement) {
     return fine_tokens;
 }
 
-SillyResults prepare_create_db(string* statement, Database& db, string &dbName) {
-    vector<string> tokens = tokenize(statement);
+SillyResults parseCreateDatabase(string* statement, Database& db, string &dbName) {
+    vector<string> tokens = tokenizeStatement(statement);
     
     if (tokens.size() != 4 || tokens[0] != "silly" || tokens[1] != "make" || tokens[2] != "db") {
         return SillyResults::SILLY_SYNTAX_ERROR;
@@ -26,8 +31,8 @@ SillyResults prepare_create_db(string* statement, Database& db, string &dbName) 
     return SillyResults::SILLY_SUCCESS;
 }
 
-SillyResults prepare_create_statement(string *statement, Schema &outSchema) {
-    vector<string> tokens = tokenize(statement);
+SillyResults parseCreateTable(string *statement, Schema &outSchema) {
+    vector<string> tokens = tokenizeStatement(statement);
 
     if (tokens[0] != "silly" || tokens[1] != "make" || tokens[2] != "table" || tokens[4] != "with" || tokens[5] != "columns") {
         return SillyResults::SILLY_SYNTAX_ERROR;
@@ -49,14 +54,14 @@ SillyResults prepare_create_statement(string *statement, Schema &outSchema) {
                 return SillyResults::SILLY_SYNTAX_ERROR;
             }
         }
-        outSchema.addColumn(ColumnDef(colName, fieldType, isPrimary));
+        outSchema.addColumn(ColumnDefinition(colName, fieldType, isPrimary));
     }
 
     return SillyResults::SILLY_SUCCESS;
 }
 
-SillyResults prepare_insert_statement(string *statement, string &outTableName, vector<string> &outRawValues) {
-    vector<string> tokens = tokenize(statement);
+SillyResults parseInsertStatement(string *statement, string &outTableName, vector<string> &outRawValues) {
+    vector<string> tokens = tokenizeStatement(statement);
     if (tokens[0] != "silly" || tokens[1] != "put") {
         return SillyResults::SILLY_SYNTAX_ERROR;
     }
@@ -86,59 +91,58 @@ SillyResults prepare_insert_statement(string *statement, string &outTableName, v
     return SillyResults::SILLY_SUCCESS;
 }
 
-SillyResults prepare_select_statement(string *statement, string &outTableName) {
-    vector<string> tokens = tokenize(statement);
-
+SillyResults parseSelectStatement(string *statement, string &outTableName) {
+    vector<string> tokens = tokenizeStatement(statement);
     return SillyResults::SILLY_SUCCESS;
 }
 
-SillyResults prepare_statement(string *statement, Database &db) {
+SillyResults parseStatement(string *statement, Database &db) {
     if (statement->back() != ';') {
         return SillyResults::SILLY_SEMICOLON_MISSING_ERROR;
     }
-    vector<string> tokens = tokenize(statement);
+    vector<string> tokens = tokenizeStatement(statement);
     if (tokens[0] != "silly") {
         return SillyResults::SILLY_SYNTAX_ERROR;
     }
 
     if (tokens[1] == "exit") { 
-        close_buffer(statement);
+        closeInputBuffer(statement);
         cout << "Miss me please :(" << endl;
         exit(EXIT_SUCCESS);
         return SillyResults::SILLY_SUCCESS;
     } else if (tokens[1] == "make") {
         if(tokens[2] == "table") {
             Schema schema;
-            SillyResults parseResult = prepare_create_statement(statement, schema);
+            SillyResults parseResult = parseCreateTable(statement, schema);
             if (parseResult != SillyResults::SILLY_SUCCESS) {
                 return parseResult;
             }
-            return execute_create_table(schema, db);
+            return executeCreateTable(schema, db);
         } else if (tokens[2] == "db") {
             string dbName;
-            SillyResults parseResult = prepare_create_db(statement, db, dbName);
+            SillyResults parseResult = parseCreateDatabase(statement, db, dbName);
             if (parseResult != SillyResults::SILLY_SUCCESS) {
                 return parseResult;
             }
-            return execute_create_db(db, dbName);
+            return executeCreateDatabase(db, dbName);
         } else {
             return SillyResults::SILLY_SYNTAX_ERROR;
         }
     } else if (tokens[1] == "put") {
         string tableName;
         vector<string> rawValues;
-        SillyResults parseResult = prepare_insert_statement(statement, tableName, rawValues);
+        SillyResults parseResult = parseInsertStatement(statement, tableName, rawValues);
         if (parseResult != SillyResults::SILLY_SUCCESS) {
             return parseResult;
         }
-        return execute_insert(tableName, rawValues, db);
+        return executeInsert(tableName, rawValues, db);
     } else if (tokens[1] == "get") {
         string tableName = tokens[2];
-        SillyResults parseResult = prepare_select_statement(statement, tableName);
+        SillyResults parseResult = parseSelectStatement(statement, tableName);
         if (parseResult != SillyResults::SILLY_SUCCESS) {
             return parseResult;
         }
-        return execute_select(tableName, db);
+        return executeSelect(tableName, db);
     } else if (tokens[1] == "save") {
         db.saveAllTables();
         return SillyResults::SILLY_SUCCESS;

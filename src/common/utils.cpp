@@ -1,21 +1,11 @@
-// #include "imports.hpp"
-void print_prompt (string dbName) {
-    cout << dbName << "/> ";
-}
+#include "utils.hpp"
+#include "../storage/value.hpp"
 
-void read_input (string *input_buffer) {
-    getline(cin, *input_buffer);
-}
-
-void close_buffer (string *input_buffer) {
-    delete input_buffer;
-}
-
-vector<string> split_on(string *str, char ch) {
+vector<string> splitString(string *str, char delimiter) {
     stringstream ss(*str);
     vector<string> words;
     string word;
-    while(getline(ss, word, ch)) {
+    while(getline(ss, word, delimiter)) {
         words.push_back(word);
     }
     return words;
@@ -27,7 +17,7 @@ string fieldTypeToString(FieldType type) {
         case FieldType::TEXT: return "TEXT";
         case FieldType::DECIMAL: return "DECIMAL";
         case FieldType::BOOLEAN: return "BOOLEAN";
-        case FieldType::BLOB: return "BOOLEAN";
+        case FieldType::BLOB: return "BLOB";
         default: return "UNKNOWN";
     }
 }
@@ -41,7 +31,7 @@ FieldType stringToFieldType(string typeStr) {
     return FieldType::UNKNOWN;
 }
 
-bool isStringValidValueForFieldType(const string& value, FieldType type) {
+bool isValidValueForFieldType(const string& value, FieldType type) {
     try {
         switch(type) {
             case FieldType::INTEGER: {
