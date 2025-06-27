@@ -1,6 +1,25 @@
-.vscode
+# Build artifacts
+build/
+*.o
+
+# Executables
+sillyql
+test_sillyql
 *.exe
 *.out
+
+# Database files
 *.db
+*.schema
+*.dbf
+data/
+
+# OS specific
+.DS_Store
+.vscode/
+*.swp
+*.swo
 *.sh
-/system/data
+
+# Temporary files
+*~

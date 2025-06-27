@@ -1,24 +1,22 @@
-#include "imports.hpp"
-#include "constants.hpp"
-#include "components.hpp"
-#include "helpers.hpp"
-#include "executor.hpp"
-#include "parser.hpp"
+#include "common/types.hpp"
+#include "database/database.hpp"
+#include "query/parser.hpp"
+#include "io/input_output.hpp"
 
 int main(int argc, char** argv) {
     if (argc >= 2) {
         cout << "Unrequired arguments passed";
         exit(EXIT_FAILURE);
     }
-    char* filename = argv[1];
-
+    
     string *input_buffer = new string();
     Database db = Database("");
+    
     while(true) {
-        print_prompt(db.getDbName());
-        read_input(input_buffer);
+        printPrompt(db.getName());
+        readInput(input_buffer);
 
-        SillyResults result = prepare_statement(input_buffer, db);
+        SillyResults result = parseStatement(input_buffer, db);
         
         switch(result) {
             case SillyResults::SILLY_SUCCESS:

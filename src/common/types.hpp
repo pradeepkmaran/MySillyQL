@@ -1,3 +1,19 @@
+#pragma once
+#include <iostream>
+#include <vector>
+#include <string>
+#include <map>
+#include <fstream>
+#include <filesystem>
+#include <algorithm>
+#include <stdexcept>
+#include <cstring>
+#include <cstdint>
+#include <iomanip>
+#include <sstream>
+#include <ctime>
+using namespace std;
+
 enum class FieldType {
     INTEGER,
     TEXT,
